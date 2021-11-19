@@ -1,0 +1,84 @@
+#!/bin/bash
+function collapse_pwd {
+  echo $(pwd | sed -e "s,^$HOME,~,")
+}
+
+EXCLUDE_BRANCHES=(
+  master
+  develop
+  fix/remove-preact
+  feature/FORM-RELEASE
+  feature/FKVG TMOB-15723
+)
+
+LIST_BRANCHES_CMD="git branch -l "
+for BRANCH in "${EXCLUDE_BRANCHES[@]}"; do
+  LIST_BRANCHES_CMD="$LIST_BRANCHES_CMD | grep -v $BRANCH"
+done
+
+GREEN="\e[32m"
+MAGENTA="\e[35m"
+CYAN="\e[36m"
+CLEAR="\e[0m"
+
+REPOS=$(find . -type d -execdir test -d {}/.git ';' -prune -print)
+
+for DIR in $REPOS; do
+  pushd $DIR > /dev/null;
+  echo -e -n $(printf " $GREEN $(collapse_pwd) $CLEAR");
+
+  git fetch &> /dev/null;
+
+  # If there are changes, stash them
+  if [[ `git status --porcelain` ]]; then
+  echo "Stashing changes...";
+    git stash -m "Automatic stash during cleanup";
+  fi
+
+  # Switch to master
+  git checkout master &> /dev/null;
+
+  # Or otherwise, main
+  if [ $? -ne 0 ]; then
+    git checkout main &> /dev/null;
+  fi
+
+  # Or otherwise, develop
+  if [ $? -ne 0 ]; then
+    git checkout develop &> /dev/null;
+  fi
+
+  echo -e $(printf " on $CYAN$(git branch --show-current)$CLEAR")
+  # Bring up to date
+  git pull &> /dev/null;
+
+  echo -e -n $(printf "$MAGENTA")
+  eval $LIST_BRANCHES_CMD
+  echo -e $(printf "$CLEAR");
+
+  popd &> /dev/null;
+done
+
+echo "Branches marked red will be removed. Do you wish to continue?"
+select REPLY in "Yes" "Force" "No"; do
+  case $REPLY in
+    Yes) 
+      for DIR in $REPOS; do
+        pushd $DIR &> /dev/null;
+        eval "$LIST_BRANCHES_CMD | xargs git branch -d"
+        popd &> /dev/null;
+      done
+      echo "Branches removed!";
+      exit;;
+    Force)
+      for DIR in $REPOS; do
+        pushd $DIR &> /dev/null;
+        eval "$LIST_BRANCHES_CMD | xargs git branch -D"
+        popd &> /dev/null;
+      done
+      echo "Branches removed!";
+      exit;;
+    No) 
+      exit;;
+  esac
+done

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+find . \
+  -type d \
+  -execdir test -d {}/.git ';' \
+  -prune \
+  -print \
+| \
+  sed s/\\\.\\\/// \
+| \
+  tree --fromfile

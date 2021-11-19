@@ -1,0 +1,17 @@
+#!/bin/bash
+function collapse_pwd {
+    echo $(pwd | sed -e "s,^$HOME,~,")
+}
+
+GREEN="\e[32m"
+CLEAR="\e[0m"
+
+REPOS=$(find . -type d -execdir test -d {}/.git ';' -prune -print)
+
+for DIR in $REPOS; do
+  pushd $DIR > /dev/null;
+  echo;
+  echo -e $(printf "$GREEN $(collapse_pwd) $CLEAR");
+  git branch -l | grep -v "this just exists to force the git branch output into a list because this works and I'm too lazy to figure out a proper solution";
+  popd > /dev/null;
+done
